@@ -1,0 +1,21 @@
+.
+ apps
+  indexer
+  orchestrator
+  ui
+   app
+ infra
+  k8s
+ mcp
+  firebase-server
+  github-server
+  linear-server
+  notion-server
+  slack-server
+ policies
+ runtimes
+  openhands
+ workflows
+  personas
+  skills
+  templates

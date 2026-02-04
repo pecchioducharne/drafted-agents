@@ -1,0 +1,89 @@
+name: Command Allowlist
+description: Approved commands for agent sandbox execution
+
+allowed_commands:
+  # Package managers
+  - npm
+  - pnpm
+  - yarn
+  - pip
+  - poetry
+  
+  # Testing
+  - pytest
+  - jest
+  - vitest
+  - playwright
+  - cypress
+  
+  # Linting and formatting
+  - eslint
+  - prettier
+  - black
+  - flake8
+  - mypy
+  
+  # Build tools
+  - tsc
+  - webpack
+  - vite
+  - rollup
+  
+  # Git operations
+  - git
+  - gh
+  
+  # File operations
+  - cat
+  - ls
+  - grep
+  - find
+  - sed
+  - awk
+  
+  # Development servers (sandbox only)
+  - next
+  - vite
+  - python
+  - node
+
+allowed_npm_scripts:
+  - test
+  - test:unit
+  - test:integration
+  - test:e2e
+  - lint
+  - format
+  - build
+  - type-check
+
+blocked_commands:
+  - rm -rf /
+  - dd
+  - mkfs
+  - fdisk
+  - curl # (unless to approved domains)
+  - wget # (unless to approved domains)
+  - nc
+  - netcat
+  - ssh
+  - scp
+  - rsync
+  - docker # (unless in controlled environment)
+
+approved_domains:
+  - github.com
+  - npmjs.com
+  - pypi.org
+  - docs.python.org
+  - developer.mozilla.org
+  - stackoverflow.com
+  - drafted.com
+
+high_risk_patterns:
+  - "eval("
+  - "exec("
+  - "subprocess.call"
+  - "os.system"
+  - "__import__"
+  - "importlib"

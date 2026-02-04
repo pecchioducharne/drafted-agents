@@ -1,0 +1,69 @@
+name: OpenHands Runtime Configuration
+description: Configuration for OpenHands agent execution environment
+
+sandbox:
+  image: drafted/agent-sandbox:latest
+  base_image: ubuntu:22.04
+  
+  # Pre-installed tools
+  tools:
+    - git
+    - gh
+    - node
+    - npm
+    - pnpm
+    - yarn
+    - python3
+    - pip
+    - pytest
+    - playwright
+    
+  # Environment setup
+  environment:
+    NODE_VERSION: "20"
+    PYTHON_VERSION: "3.11"
+    PNPM_VERSION: "8"
+    
+  # Resource limits
+  resources:
+    memory: "4Gi"
+    cpu: "2"
+    timeout: "30m"
+
+# Allowed repositories
+allowed_repos:
+  - drafted/drafted-web
+  - drafted/drafted-mobile
+  - drafted/drafted-recruiter
+  - drafted/drafted-scraper
+
+# Command allowlist (enforced at runtime)
+allowed_commands:
+  - npm
+  - pnpm
+  - yarn
+  - pip
+  - pytest
+  - jest
+  - playwright
+  - git
+  - gh
+
+# Network policies
+network:
+  allow_outbound: true
+  allowed_domains:
+    - github.com
+    - npmjs.com
+    - pypi.org
+    - docs.python.org
+
+# Artifact collection
+artifacts:
+  enabled: true
+  types:
+    - logs
+    - diffs
+    - test_reports
+    - screenshots
+  retention_days: 30

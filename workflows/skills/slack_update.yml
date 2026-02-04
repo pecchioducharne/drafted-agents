@@ -1,0 +1,17 @@
+name: SlackUpdate
+description: Post updates and summaries to Slack channels
+tools:
+  - mcp.slack.post_message
+  - mcp.slack.post_thread_reply
+  - mcp.slack.add_reaction
+success_checks:
+  - "message posted"
+  - "includes relevant links"
+  - "mentions appropriate people"
+constraints:
+  - "use thread replies for follow-ups"
+  - "include context and links"
+  - "respect channel guidelines"
+cost_limit:
+  max_api_calls: 5
+  max_duration_minutes: 2

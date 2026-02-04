@@ -1,0 +1,72 @@
+name: Deep Research Memo
+description: Investigate options and produce decision memo
+trigger:
+  - slack_command
+  - manual
+
+steps:
+  - name: intake
+    agent: orchestrator
+    action: parse_request
+    outputs:
+      - research_question
+      - constraints
+      - deadline
+
+  - name: research_parallel
+    parallel: true
+    branches:
+      - name: researcher
+        agent: researcher
+        action: gather_evidence
+        skills:
+          - WebSearch
+          - RepoRead
+          - NotionRead
+        outputs:
+          - options
+          - references
+          - tradeoffs
+
+      - name: detective
+        agent: debugger
+        action: analyze_current_state
+        skills:
+          - RepoRead
+          - LogAnalysis
+        outputs:
+          - current_implementation
+          - pain_points
+          - constraints
+
+  - name: synthesize
+    agent: researcher
+    action: create_memo
+    inputs:
+      - research_results
+      - detective_findings
+    outputs:
+      - memo_document
+      - recommendation
+      - decision_matrix
+
+  - name: communicate
+    agent: communicator
+    action: distribute_memo
+    skills:
+      - NotionPage
+      - SlackUpdate
+    outputs:
+      - notion_page_url
+      - slack_posted
+
+artifacts:
+  - research_memo
+  - decision_matrix
+  - references
+
+success_criteria:
+  - "Memo created"
+  - "At least 2 options compared"
+  - "Recommendation provided"
+  - "Stakeholders notified"

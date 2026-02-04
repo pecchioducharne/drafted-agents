@@ -1,0 +1,123 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_USER: temporal
+      POSTGRES_DB: temporal
+    ports: ["5432:5432"]
+    volumes: ["pg:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  temporal:
+    image: temporalio/auto-setup:1.25
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB: postgresql
+      DB_PORT: 5432
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: temporal
+      POSTGRES_SEEDS: postgres
+    ports: ["7233:7233"]
+    healthcheck:
+      test: ["CMD", "tctl", "cluster", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  temporal-ui:
+    image: temporalio/ui:2.26.2
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    ports: ["8080:8080"]
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports: ["6333:6333", "6334:6334"]
+    volumes: ["qdrant:/qdrant/storage"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MCP servers (placeholders; swap images as you implement)
+  mcp-github:
+    build: ../mcp/github-server
+    ports: ["3000:3000"]
+    env_file:
+      - ../.env
+    environment:
+      - PORT=3000
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+    restart: unless-stopped
+
+  mcp-linear:
+    build: ../mcp/linear-server
+    ports: ["3001:3001"]
+    env_file:
+      - ../.env
+    environment:
+      - PORT=3001
+      - LINEAR_TOKEN=${LINEAR_TOKEN}
+    restart: unless-stopped
+
+  mcp-notion:
+    build: ../mcp/notion-server
+    ports: ["3002:3002"]
+    env_file:
+      - ../.env
+    environment:
+      - PORT=3002
+      - NOTION_TOKEN=${NOTION_TOKEN}
+    restart: unless-stopped
+
+  mcp-slack:
+    build: ../mcp/slack-server
+    ports: ["3003:3003"]
+    env_file:
+      - ../.env
+    environment:
+      - PORT=3003
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
+    restart: unless-stopped
+
+  mcp-firebase:
+    build: ../mcp/firebase-server
+    ports: ["3004:3004"]
+    env_file:
+      - ../.env
+    environment:
+      - PORT=3004
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+    volumes:
+      - ${FIREBASE_SERVICE_ACCOUNT_PATH}:/secrets/firebase-service-account.json:ro
+    restart: unless-stopped
+
+  openhands:
+    image: ghcr.io/all-hands-ai/openhands:latest
+    ports: ["8000:8000"]
+    environment:
+      OPENHANDS_LOG_LEVEL: info
+      SANDBOX_TYPE: docker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - openhands-workspace:/workspace
+    restart: unless-stopped
+
+volumes:
+  pg: {}
+  qdrant: {}
+  openhands-workspace: {}

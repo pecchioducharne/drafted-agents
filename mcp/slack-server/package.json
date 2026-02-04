@@ -1,0 +1,18 @@
+{
+  "name": "mcp-slack-server",
+  "version": "0.1.0",
+  "description": "MCP server for Slack integration",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "@slack/web-api": "^6.10.0",
+    "express": "^4.18.2",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

@@ -1,0 +1,21 @@
+name: GitHubPR
+description: Create and manage GitHub pull requests
+tools:
+  - mcp.github.search_code
+  - mcp.github.create_branch
+  - mcp.github.commit
+  - mcp.github.open_pr
+  - mcp.github.add_labels
+  - mcp.github.link_issue
+success_checks:
+  - "PR link returned"
+  - "PR description includes ticket link + risk notes"
+  - "Branch follows naming convention"
+  - "At least one commit present"
+constraints:
+  - "branch naming: agent/<task_id>"
+  - "one logical change per PR"
+  - "must include test changes if code changes"
+cost_limit:
+  max_api_calls: 50
+  max_duration_minutes: 30

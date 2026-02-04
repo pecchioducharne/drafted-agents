@@ -1,0 +1,20 @@
+name: RunTests
+description: Execute test suites and validate code changes
+tools:
+  - sandbox.run_command
+  - sandbox.get_logs
+  - test_runner.unit
+  - test_runner.integration
+  - test_runner.e2e
+success_checks:
+  - "tests executed"
+  - "results captured"
+  - "coverage reported"
+  - "no new failures introduced"
+constraints:
+  - "run in sandbox only"
+  - "timeout after 10 minutes"
+  - "capture full output"
+cost_limit:
+  max_duration_minutes: 15
+  max_retries: 2

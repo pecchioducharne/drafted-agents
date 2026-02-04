@@ -1,0 +1,17 @@
+name: RepoRead
+description: Read and analyze repository code and structure
+tools:
+  - mcp.github.get_file
+  - mcp.github.list_files
+  - mcp.github.search_code
+  - mcp.github.get_commit_history
+  - mcp.github.get_pr_list
+success_checks:
+  - "relevant files identified"
+  - "context gathered"
+constraints:
+  - "read-only operations"
+  - "respect rate limits"
+cost_limit:
+  max_api_calls: 100
+  max_duration_minutes: 15

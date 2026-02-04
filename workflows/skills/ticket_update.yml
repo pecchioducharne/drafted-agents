@@ -1,0 +1,18 @@
+name: TicketUpdate
+description: Update Linear/Jira tickets with progress and results
+tools:
+  - mcp.linear.get_issue
+  - mcp.linear.update_issue
+  - mcp.linear.add_comment
+  - mcp.linear.change_status
+success_checks:
+  - "ticket updated"
+  - "comment includes summary"
+  - "status reflects current state"
+constraints:
+  - "must include link to PR if applicable"
+  - "must summarize what was done"
+  - "preserve existing ticket data"
+cost_limit:
+  max_api_calls: 10
+  max_duration_minutes: 5

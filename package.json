@@ -1,0 +1,24 @@
+{
+  "name": "drafted-agents",
+  "version": "0.1.0",
+  "description": "Agentic system for Drafted - orchestration, execution, and knowledge layer",
+  "private": true,
+  "workspaces": [
+    "apps/ui",
+    "mcp/*-server"
+  ],
+  "scripts": {
+    "dev": "echo 'Use docker-compose to run the full stack'",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces"
+  },
+  "keywords": [
+    "agents",
+    "langgraph",
+    "mcp",
+    "temporal",
+    "openhands"
+  ],
+  "author": "Drafted",
+  "license": "UNLICENSED"
+}

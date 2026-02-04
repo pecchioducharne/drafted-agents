@@ -1,0 +1,84 @@
+name: Bug Triage
+description: Investigate, reproduce, and fix bugs with regression tests
+trigger:
+  - sentry_webhook
+  - linear_webhook
+  - manual
+
+steps:
+  - name: intake
+    agent: orchestrator
+    action: parse_bug_report
+    outputs:
+      - error_message
+      - stack_trace
+      - affected_users
+      - severity
+
+  - name: reproduce
+    agent: debugger
+    action: reproduce_bug
+    skills:
+      - RepoRead
+      - RunTests
+      - LogAnalysis
+    outputs:
+      - reproduction_steps
+      - root_cause_hypothesis
+      - affected_code
+
+  - name: minimal_fix
+    agent: coder
+    action: implement_fix
+    skills:
+      - PatchEdit
+      - RunTests
+    outputs:
+      - fix_patch
+      - regression_test
+
+  - name: validate
+    agent: breaker
+    action: test_fix
+    skills:
+      - RunTests
+    outputs:
+      - test_results
+      - edge_cases_covered
+
+  - name: gate_tests
+    agent: orchestrator
+    action: validate_tests
+    required: true
+    failure_action: reject
+
+  - name: create_pr
+    agent: coder
+    action: open_pull_request
+    skills:
+      - GitHubPR
+    outputs:
+      - pr_url
+
+  - name: communicate
+    agent: communicator
+    action: update_stakeholders
+    skills:
+      - TicketUpdate
+      - SlackUpdate
+      - SentryComment
+    outputs:
+      - updates_posted
+
+artifacts:
+  - reproduction_steps
+  - fix_patch
+  - regression_test
+  - pr_link
+
+success_criteria:
+  - "Bug reproduced"
+  - "Fix implemented"
+  - "Regression test added"
+  - "PR created"
+  - "Stakeholders notified"

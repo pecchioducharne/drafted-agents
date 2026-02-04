@@ -1,0 +1,95 @@
+name: Data Boundaries
+description: Access control and data handling policies
+
+scopes:
+  researcher:
+    read:
+      - github.repos
+      - github.issues
+      - github.prs
+      - linear.issues
+      - notion.pages
+      - slack.messages
+    write: []
+    
+  debugger:
+    read:
+      - github.repos
+      - github.issues
+      - logs.application
+      - sentry.events
+    write:
+      - github.comments
+      - linear.comments
+    
+  coder:
+    read:
+      - github.repos
+      - github.issues
+      - linear.issues
+    write:
+      - github.branches
+      - github.commits
+      - github.prs
+      - linear.comments
+      - linear.status
+    
+  breaker:
+    read:
+      - github.repos
+      - test.results
+    write:
+      - test.results
+      - security.reports
+    
+  communicator:
+    read:
+      - github.prs
+      - linear.issues
+      - test.results
+    write:
+      - github.pr_descriptions
+      - linear.comments
+      - linear.status
+      - slack.messages
+      - notion.pages
+
+firebase_rules:
+  agents:
+    collections:
+      allowed_read:
+        - candidates
+        - jobs
+        - matches
+        - analytics
+      allowed_write:
+        - analytics
+        - agent_logs
+      blocked:
+        - users.private
+        - payments
+        - admin_settings
+        - api_keys
+  
+  approval_required:
+    - firestore.rules
+    - storage.rules
+    - any write to production collections
+
+sensitive_data:
+  redact_patterns:
+    - "password"
+    - "api_key"
+    - "token"
+    - "secret"
+    - "private_key"
+    - "ssn"
+    - "credit_card"
+    - "bearer"
+  
+  pii_fields:
+    - email
+    - phone
+    - address
+    - date_of_birth
+    - social_security_number

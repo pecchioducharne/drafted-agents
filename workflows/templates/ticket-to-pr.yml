@@ -1,0 +1,117 @@
+name: Ticket → PR
+description: Default workflow for converting a ticket into a pull request
+trigger:
+  - slack_command
+  - linear_webhook
+  - manual
+
+steps:
+  - name: intake
+    agent: orchestrator
+    action: parse_request
+    outputs:
+      - task_context
+      - ticket_id
+      - repo
+      - constraints
+
+  - name: route
+    agent: orchestrator
+    action: classify_and_route
+    inputs:
+      - task_context
+    outputs:
+      - persona
+      - skills
+      - executor
+      - gates
+
+  - name: research
+    agent: researcher
+    action: gather_context
+    skills:
+      - RepoRead
+      - TicketRead
+    outputs:
+      - relevant_files
+      - prior_work
+      - context_summary
+
+  - name: debug
+    agent: debugger
+    action: reproduce_and_analyze
+    skills:
+      - RepoRead
+      - RunTests
+      - LogAnalysis
+    outputs:
+      - reproduction_steps
+      - root_cause
+      - fix_approach
+    optional: true
+    condition: "task_type == 'bug'"
+
+  - name: implement
+    agent: coder
+    action: write_code
+    skills:
+      - PatchEdit
+      - RunTests
+    outputs:
+      - code_changes
+      - test_results
+
+  - name: break
+    agent: breaker
+    action: test_edge_cases
+    skills:
+      - RunTests
+      - SecurityScan
+    outputs:
+      - test_results
+      - security_findings
+
+  - name: gate_tests
+    agent: orchestrator
+    action: validate_tests
+    required: true
+    failure_action: reject
+
+  - name: create_pr
+    agent: coder
+    action: open_pull_request
+    skills:
+      - GitHubPR
+    outputs:
+      - pr_url
+      - pr_number
+
+  - name: communicate
+    agent: communicator
+    action: update_stakeholders
+    skills:
+      - TicketUpdate
+      - SlackUpdate
+    outputs:
+      - ticket_updated
+      - slack_posted
+
+  - name: gate_approval
+    agent: orchestrator
+    action: check_approval_needed
+    condition: "risk_level == 'high'"
+    outputs:
+      - approval_status
+
+artifacts:
+  - logs
+  - diffs
+  - test_reports
+  - pr_link
+  - ticket_link
+
+success_criteria:
+  - "PR created"
+  - "Tests passing"
+  - "Ticket updated"
+  - "Stakeholders notified"

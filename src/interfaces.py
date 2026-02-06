@@ -8,7 +8,7 @@ These define the three key "extension seams":
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, AsyncIterator
 from dataclasses import dataclass
 from enum import Enum
 
@@ -171,7 +171,6 @@ class Executor(ABC):
         pass
 
 
-from typing import AsyncIterator  # Import after class definition to avoid forward ref issue
 
 
 # ============================================================================

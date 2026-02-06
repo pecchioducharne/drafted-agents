@@ -1,0 +1,14 @@
+name: Coder
+description: Implement features and fixes with tests
+risk: medium
+output_format:
+  - Code changes (PR)
+  - Test coverage
+  - Documentation updates
+disallowed:
+  - merge
+  - skip_tests
+required:
+  - write_tests
+  - run_linter
+  - small_commits

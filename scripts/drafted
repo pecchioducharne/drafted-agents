@@ -59,15 +59,20 @@ def run(
     issue: Optional[int] = typer.Option(None, "--issue", "-i", help="GitHub issue number"),
     pr: Optional[int] = typer.Option(None, "--pr", "-p", help="GitHub PR number"),
     job_type: Optional[str] = typer.Option(None, "--type", "-t", help="Job type (issue_to_pr, debug_explain, etc.)"),
-    follow: bool = typer.Option(False, "--follow", "-f", help="Follow job logs after submission"),
+    no_wait: bool = typer.Option(False, "--no-wait", help="Don't wait for results, return immediately"),
+    wait_timeout: int = typer.Option(30, "--timeout", help="Max seconds to wait for quick jobs (default: 30)"),
 ):
     """
     🚀 Submit a new job to the agent system
+    
+    By default, waits for results and shows them automatically.
+    Use --no-wait to return immediately with just the job ID.
     
     Examples:
         drafted run "Fix the mobile layout bug"
         drafted run "Analyze auth flow" --repo drafted-web
         drafted run "Fix issue #123" --repo drafted-web --issue 123
+        drafted run "Long task" --no-wait  # Returns immediately
     """
     show_banner()
     
@@ -106,32 +111,116 @@ def run(
         result = response.json()
         job_id = result.get("job_id")
         
-        # Display success
-        panel = Panel(
-            f"[bold green]Job ID:[/bold green] [cyan]{job_id}[/cyan]\n"
-            f"[bold green]Status:[/bold green] {result.get('status', 'queued')}\n"
-            f"[bold green]Request:[/bold green] {request}",
-            title="✅ Job Submitted",
-            border_style="green"
-        )
-        console.print(panel)
+        # Display submission confirmation
+        console.print(f"\n[bold green]✓[/bold green] Job submitted: [cyan]{job_id}[/cyan]")
         
-        console.print(f"\n💡 Check status: [cyan]drafted status {job_id}[/cyan]")
-        console.print(f"💡 View logs: [cyan]drafted logs {job_id}[/cyan]")
+        # If --no-wait, return immediately
+        if no_wait:
+            console.print(f"\n💡 Check status: [cyan]drafted status {job_id}[/cyan]")
+            console.print(f"💡 View logs: [cyan]drafted logs {job_id}[/cyan]")
+            return
         
-        # Follow logs if requested
-        if follow:
-            console.print("\n[bold]📄 Following logs...[/bold]\n")
-            time.sleep(2)
-            # Call logs function directly
-            import sys
-            sys.argv = ["drafted", "logs", job_id, "--follow"]
-            logs(job_id, follow=True, tail=50)
+        # Smart waiting: Auto-follow results
+        console.print(f"[dim]⏳ Waiting for results (max {wait_timeout}s)...[/dim]\n")
+        
+        _smart_wait_and_display(job_id, wait_timeout)
         
     except httpx.HTTPError as e:
         handle_error(e)
     except Exception as e:
         handle_error(e)
+
+
+def _smart_wait_and_display(job_id: str, max_wait: int):
+    """
+    Smart waiting logic that combines all three options:
+    1. Auto-follow for quick jobs (< 5s)
+    2. Show results immediately when done
+    3. Stream logs for longer jobs
+    """
+    start_time = time.time()
+    last_log_count = 0
+    shown_header = False
+    
+    try:
+        while True:
+            elapsed = time.time() - start_time
+            
+            # Check if we've exceeded timeout
+            if elapsed > max_wait:
+                console.print(f"\n[yellow]⏱️  Still running after {max_wait}s[/yellow]")
+                console.print(f"💡 Continue watching: [cyan]drafted logs {job_id} --follow[/cyan]")
+                return
+            
+            # Poll job status
+            try:
+                response = httpx.get(f"{API_URL}/jobs/{job_id}", timeout=10.0)
+                response.raise_for_status()
+                job = response.json()
+                
+                status = job.get("status")
+                result = job.get("result", {})
+                logs_data = result.get("logs", []) if result else []
+                
+                # Show new logs as they come in
+                if logs_data and len(logs_data) > last_log_count:
+                    if not shown_header:
+                        console.print("[bold]📄 Logs:[/bold]\n")
+                        shown_header = True
+                    
+                    for log in logs_data[last_log_count:]:
+                        console.print(log)
+                    last_log_count = len(logs_data)
+                
+                # Check if job is done
+                if status in ["completed", "failed", "cancelled"]:
+                    # Show any remaining logs
+                    if logs_data and len(logs_data) > last_log_count:
+                        for log in logs_data[last_log_count:]:
+                            console.print(log)
+                    
+                    # Show completion status
+                    elapsed_time = time.time() - start_time
+                    
+                    if status == "completed":
+                        console.print(f"\n[bold green]✅ Completed in {elapsed_time:.1f}s[/bold green]")
+                        
+                        # Show outputs if available
+                        outputs = result.get("outputs", {})
+                        if outputs:
+                            console.print("\n[bold]📊 Outputs:[/bold]")
+                            for key, value in outputs.items():
+                                console.print(f"  • {key}: {value}")
+                        
+                        # Show artifacts if available
+                        artifacts = result.get("artifacts", {})
+                        if artifacts:
+                            console.print("\n[bold]📎 Artifacts:[/bold]")
+                            for key, value in artifacts.items():
+                                console.print(f"  • {key}: {value}")
+                    
+                    elif status == "failed":
+                        console.print(f"\n[bold red]❌ Failed after {elapsed_time:.1f}s[/bold red]")
+                        error = result.get("error")
+                        if error:
+                            console.print(f"[red]Error: {error}[/red]")
+                    
+                    elif status == "cancelled":
+                        console.print(f"\n[bold yellow]⚠️  Cancelled after {elapsed_time:.1f}s[/bold yellow]")
+                    
+                    return
+                
+                # Still running, wait a bit
+                time.sleep(1)
+                
+            except httpx.HTTPError:
+                # Job might not be available yet
+                time.sleep(1)
+                continue
+    
+    except KeyboardInterrupt:
+        console.print("\n[yellow]⚠️  Stopped watching (job still running)[/yellow]")
+        console.print(f"💡 Continue watching: [cyan]drafted logs {job_id} --follow[/cyan]")
 
 
 @app.command()

@@ -1,0 +1,42 @@
+name: issue_to_pr
+description: Convert a GitHub issue into a pull request
+required_persona: coder
+
+skills_sequence:
+  - skill_name: github_context
+    inputs:
+      search_related: true
+    optional: false
+    timeout_seconds: 60
+  
+  - skill_name: openhands_pr
+    inputs:
+      run_tests: true
+      create_pr: true
+    optional: false
+    timeout_seconds: 1800
+    retry_count: 1
+  
+  - skill_name: netlify_deploy
+    inputs:
+      wait: true
+      max_wait: 120
+    optional: true
+    timeout_seconds: 180
+
+gates:
+  - name: tests_pass
+    condition: test_report.passed == true
+    required: true
+  
+  - name: pr_created
+    condition: pr_url != null
+    required: true
+
+retry_policy:
+  max_attempts: 2
+  backoff_seconds: 60
+
+metadata:
+  priority: high
+  estimated_duration: 30m

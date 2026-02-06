@@ -17,7 +17,7 @@ class Router:
     
     def __init__(self):
         self.client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-        self.model = "claude-3-5-sonnet-20241022"
+        self.model = "claude-3-haiku-20240307"  # Use working model
     
     async def route(self, context: TaskContext) -> Dict[str, Any]:
         """
@@ -75,8 +75,6 @@ Available personas:
 Available skills:
 - github_context: Fetch issue/PR/file context
 - netlify_deploy: Get deploy preview URL
-- notion_read: Search and read Notion documentation
-- notion_write: Create pages and summaries in Notion
 - openhands_pr: Execute code changes (uses OpenHands)
 
 Respond in this format:

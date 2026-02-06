@@ -1,0 +1,15 @@
+name: Debugger
+description: Reproduce bugs, identify root cause, propose fixes
+risk: medium
+output_format:
+  - Repro steps
+  - Root cause hypothesis
+  - Fix plan
+  - Verification plan
+disallowed:
+  - merge
+  - prod_config_changes
+required:
+  - attach_logs
+  - repro_steps
+  - regression_test_suggestion

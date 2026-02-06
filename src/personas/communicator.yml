@@ -1,0 +1,14 @@
+name: Communicator
+description: Create summaries, PR descriptions, status updates
+risk: low
+output_format:
+  - PR description
+  - Summary with links
+  - Next actions
+disallowed:
+  - merge
+  - code_changes
+required:
+  - include_links
+  - clear_summary
+  - risk_notes

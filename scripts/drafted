@@ -123,7 +123,10 @@ def run(
         if follow:
             console.print("\n[bold]📄 Following logs...[/bold]\n")
             time.sleep(2)
-            logs_command(job_id, follow=True)
+            # Call logs function directly
+            import sys
+            sys.argv = ["drafted", "logs", job_id, "--follow"]
+            logs(job_id, follow=True, tail=50)
         
     except httpx.HTTPError as e:
         handle_error(e)
@@ -241,7 +244,9 @@ def logs(
                     response.raise_for_status()
                     job = response.json()
                     
-                    logs_data = job.get("logs", [])
+                    # Logs are in job.result.logs
+                    result = job.get("result", {})
+                    logs_data = result.get("logs", []) if result else []
                     
                     # Print new logs
                     if len(logs_data) > last_log_count:
@@ -265,7 +270,9 @@ def logs(
             response.raise_for_status()
             job = response.json()
             
-            logs_data = job.get("logs", [])
+            # Logs are in job.result.logs
+            result = job.get("result", {})
+            logs_data = result.get("logs", []) if result else []
             
             if not logs_data:
                 console.print("[yellow]No logs available yet[/yellow]")

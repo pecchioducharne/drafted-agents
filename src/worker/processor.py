@@ -7,8 +7,6 @@ from typing import Dict, Any
 from src.interfaces import TaskContext, SkillRegistry, ExecutorRegistry
 from src.skills.github_context import GitHubContextSkill
 from src.skills.netlify_deploy import NetlifyDeploySkill
-from src.skills.notion_read import NotionReadSkill
-from src.skills.notion_write import NotionWriteSkill
 from src.openhands.executor import OpenHandsExecutor
 from src.worker.router import Router
 
@@ -20,8 +18,6 @@ executor_registry = ExecutorRegistry()
 # Register skills
 skill_registry.register(GitHubContextSkill())
 skill_registry.register(NetlifyDeploySkill())
-skill_registry.register(NotionReadSkill())
-skill_registry.register(NotionWriteSkill())
 # TODO: Add more skills as needed
 
 # Register executors

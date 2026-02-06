@@ -1,0 +1,3 @@
+"""Drafted Agent Brain - Simplified Setup"""
+
+__version__ = "0.2.0"

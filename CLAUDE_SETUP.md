@@ -37,6 +37,7 @@ The `.mcp.json` file in this repo automatically configures:
 - ✅ GitHub MCP Server
 - ✅ Firebase MCP Server
 - ✅ Perplexity MCP Server
+- ✅ Netlify MCP Server
 
 When you start Claude Code from this directory, these servers will be automatically loaded.
 

@@ -60,3 +60,7 @@ secrets/
 
 # OS
 Thumbs.db
+
+# MCP Configuration
+.env.mcp
+.claude.json

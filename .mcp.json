@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_TOKEN}"
+      }
+    },
+    "firebase": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "firebase-tools@latest", "mcp"],
+      "env": {}
+    },
+    "perplexity": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@perplexity-ai/mcp-server"],
+      "env": {
+        "PERPLEXITY_API_KEY": "${PERPLEXITY_API_KEY}"
+      }
+    }
+  }
+}

@@ -1,0 +1,450 @@
+#!/usr/bin/env python3
+"""
+Drafted Brain CLI - Beautiful command-line interface for the agent system
+
+Usage:
+    drafted run "Fix issue #123"
+    drafted status <job_id>
+    drafted logs <job_id>
+    drafted health
+"""
+
+import os
+import sys
+from pathlib import Path
+from typing import Optional
+import typer
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.live import Live
+from rich.syntax import Syntax
+import httpx
+import time
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+app = typer.Typer(
+    name="drafted",
+    help="🧠 Drafted Brain - AI Agent System",
+    add_completion=False,
+    rich_markup_mode="rich"
+)
+
+console = Console()
+API_URL = os.getenv("BRAIN_API_URL", "http://localhost:7001")
+
+
+def show_banner():
+    """Display the Drafted ASCII banner"""
+    banner_path = Path(__file__).parent.parent / "wall.txt"
+    if banner_path.exists():
+        banner = banner_path.read_text()
+        console.print(f"[bold cyan]{banner}[/bold cyan]")
+        console.print("[bold]Brain[/bold] - AI Agent System\n", style="cyan")
+
+
+def handle_error(error: Exception):
+    """Handle and display errors beautifully"""
+    console.print(f"[bold red]✗ Error:[/bold red] {str(error)}")
+    sys.exit(1)
+
+
+@app.command()
+def run(
+    request: str = typer.Argument(..., help="Task description for the agent"),
+    repo: Optional[str] = typer.Option(None, "--repo", "-r", help="GitHub repository name"),
+    issue: Optional[int] = typer.Option(None, "--issue", "-i", help="GitHub issue number"),
+    pr: Optional[int] = typer.Option(None, "--pr", "-p", help="GitHub PR number"),
+    job_type: Optional[str] = typer.Option(None, "--type", "-t", help="Job type (issue_to_pr, debug_explain, etc.)"),
+    follow: bool = typer.Option(False, "--follow", "-f", help="Follow job logs after submission"),
+):
+    """
+    🚀 Submit a new job to the agent system
+    
+    Examples:
+        drafted run "Fix the mobile layout bug"
+        drafted run "Analyze auth flow" --repo drafted-web
+        drafted run "Fix issue #123" --repo drafted-web --issue 123
+    """
+    show_banner()
+    
+    # Build request payload
+    payload = {"request": request}
+    
+    if repo:
+        payload["repo"] = repo
+    if issue:
+        payload["issue"] = issue
+    if pr:
+        payload["pr"] = pr
+    if job_type:
+        payload["job_type"] = job_type
+    
+    # Submit job
+    console.print("[bold]📤 Submitting job...[/bold]")
+    
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Sending request to agent system...", total=None)
+            
+            response = httpx.post(
+                f"{API_URL}/jobs",
+                json=payload,
+                timeout=30.0
+            )
+            response.raise_for_status()
+            
+            progress.update(task, completed=True)
+        
+        result = response.json()
+        job_id = result.get("job_id")
+        
+        # Display success
+        panel = Panel(
+            f"[bold green]Job ID:[/bold green] [cyan]{job_id}[/cyan]\n"
+            f"[bold green]Status:[/bold green] {result.get('status', 'queued')}\n"
+            f"[bold green]Request:[/bold green] {request}",
+            title="✅ Job Submitted",
+            border_style="green"
+        )
+        console.print(panel)
+        
+        console.print(f"\n💡 Check status: [cyan]drafted status {job_id}[/cyan]")
+        console.print(f"💡 View logs: [cyan]drafted logs {job_id}[/cyan]")
+        
+        # Follow logs if requested
+        if follow:
+            console.print("\n[bold]📄 Following logs...[/bold]\n")
+            time.sleep(2)
+            logs_command(job_id, follow=True)
+        
+    except httpx.HTTPError as e:
+        handle_error(e)
+    except Exception as e:
+        handle_error(e)
+
+
+@app.command()
+def status(
+    job_id: str = typer.Argument(..., help="Job ID to check"),
+):
+    """
+    📊 Check the status of a job
+    
+    Example:
+        drafted status abc123def456
+    """
+    show_banner()
+    
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Fetching job status...", total=None)
+            
+            response = httpx.get(f"{API_URL}/jobs/{job_id}", timeout=10.0)
+            response.raise_for_status()
+            
+            progress.update(task, completed=True)
+        
+        job = response.json()
+        
+        # Status color
+        status_val = job.get("status", "unknown")
+        status_colors = {
+            "queued": "yellow",
+            "running": "blue",
+            "completed": "green",
+            "failed": "red",
+            "cancelled": "orange"
+        }
+        status_color = status_colors.get(status_val, "white")
+        
+        # Build info panel
+        info = f"[bold]Job ID:[/bold] [cyan]{job_id}[/cyan]\n"
+        info += f"[bold]Status:[/bold] [{status_color}]{status_val.upper()}[/{status_color}]\n"
+        info += f"[bold]Request:[/bold] {job.get('request', 'N/A')}\n"
+        
+        if job.get("repo"):
+            info += f"[bold]Repository:[/bold] {job['repo']}\n"
+        if job.get("issue"):
+            info += f"[bold]Issue:[/bold] #{job['issue']}\n"
+        if job.get("current_step"):
+            info += f"[bold]Current Step:[/bold] {job['current_step']}\n"
+        
+        # Add outputs if available
+        if job.get("outputs"):
+            info += f"\n[bold]Outputs:[/bold]\n"
+            for key, value in job["outputs"].items():
+                info += f"  • {key}: {value}\n"
+        
+        # Add artifacts if available
+        if job.get("artifacts"):
+            info += f"\n[bold]Artifacts:[/bold]\n"
+            for key, value in job["artifacts"].items():
+                info += f"  • {key}: {value}\n"
+        
+        panel = Panel(
+            info,
+            title=f"📊 Job Status",
+            border_style=status_color
+        )
+        console.print(panel)
+        
+        # Show next steps
+        if status_val == "running":
+            console.print(f"\n💡 View logs: [cyan]drafted logs {job_id} --follow[/cyan]")
+        elif status_val == "completed":
+            console.print(f"\n✅ Job completed successfully!")
+        elif status_val == "failed":
+            console.print(f"\n❌ Job failed. Check logs: [cyan]drafted logs {job_id}[/cyan]")
+        
+    except httpx.HTTPError as e:
+        handle_error(e)
+    except Exception as e:
+        handle_error(e)
+
+
+@app.command()
+def logs(
+    job_id: str = typer.Argument(..., help="Job ID to view logs for"),
+    follow: bool = typer.Option(False, "--follow", "-f", help="Follow logs in real-time"),
+    tail: int = typer.Option(50, "--tail", "-n", help="Number of lines to show"),
+):
+    """
+    📄 View logs for a job
+    
+    Examples:
+        drafted logs abc123def456
+        drafted logs abc123def456 --follow
+        drafted logs abc123def456 --tail 100
+    """
+    show_banner()
+    
+    try:
+        if follow:
+            console.print("[bold]📄 Following logs (Ctrl+C to stop)...[/bold]\n")
+            last_log_count = 0
+            
+            while True:
+                try:
+                    response = httpx.get(f"{API_URL}/jobs/{job_id}", timeout=10.0)
+                    response.raise_for_status()
+                    job = response.json()
+                    
+                    logs_data = job.get("logs", [])
+                    
+                    # Print new logs
+                    if len(logs_data) > last_log_count:
+                        for log in logs_data[last_log_count:]:
+                            console.print(log)
+                        last_log_count = len(logs_data)
+                    
+                    # Check if job is done
+                    status = job.get("status")
+                    if status in ["completed", "failed", "cancelled"]:
+                        console.print(f"\n[bold]Job {status}[/bold]")
+                        break
+                    
+                    time.sleep(2)
+                    
+                except KeyboardInterrupt:
+                    console.print("\n[yellow]Stopped following logs[/yellow]")
+                    break
+        else:
+            response = httpx.get(f"{API_URL}/jobs/{job_id}", timeout=10.0)
+            response.raise_for_status()
+            job = response.json()
+            
+            logs_data = job.get("logs", [])
+            
+            if not logs_data:
+                console.print("[yellow]No logs available yet[/yellow]")
+                return
+            
+            # Show last N lines
+            logs_to_show = logs_data[-tail:] if len(logs_data) > tail else logs_data
+            
+            console.print(f"[bold]📄 Logs for job {job_id}[/bold] (showing last {len(logs_to_show)} lines)\n")
+            
+            for log in logs_to_show:
+                console.print(log)
+            
+            if len(logs_data) > tail:
+                console.print(f"\n[dim]... {len(logs_data) - tail} more lines (use --tail to see more)[/dim]")
+    
+    except httpx.HTTPError as e:
+        handle_error(e)
+    except Exception as e:
+        handle_error(e)
+
+
+@app.command()
+def list(
+    limit: int = typer.Option(10, "--limit", "-l", help="Number of jobs to show"),
+    status_filter: Optional[str] = typer.Option(None, "--status", "-s", help="Filter by status"),
+):
+    """
+    📋 List recent jobs
+    
+    Examples:
+        drafted list
+        drafted list --limit 20
+        drafted list --status running
+    """
+    show_banner()
+    
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Fetching jobs...", total=None)
+            
+            params = {"limit": limit}
+            if status_filter:
+                params["status"] = status_filter
+            
+            response = httpx.get(f"{API_URL}/jobs", params=params, timeout=10.0)
+            response.raise_for_status()
+            
+            progress.update(task, completed=True)
+        
+        jobs = response.json().get("jobs", [])
+        
+        if not jobs:
+            console.print("[yellow]No jobs found[/yellow]")
+            return
+        
+        # Create table
+        table = Table(title=f"📋 Recent Jobs ({len(jobs)})", show_header=True, header_style="bold cyan")
+        table.add_column("Job ID", style="cyan", width=20)
+        table.add_column("Status", width=12)
+        table.add_column("Request", width=50)
+        table.add_column("Created", width=20)
+        
+        for job in jobs:
+            job_id = job.get("job_id", "")[:16] + "..."
+            status_val = job.get("status", "unknown")
+            request = job.get("request", "")[:47] + "..." if len(job.get("request", "")) > 50 else job.get("request", "")
+            created = job.get("created_at", "")[:19] if job.get("created_at") else "N/A"
+            
+            # Status styling
+            status_colors = {
+                "queued": "yellow",
+                "running": "blue",
+                "completed": "green",
+                "failed": "red",
+                "cancelled": "orange"
+            }
+            status_color = status_colors.get(status_val, "white")
+            status_display = f"[{status_color}]{status_val.upper()}[/{status_color}]"
+            
+            table.add_row(job_id, status_display, request, created)
+        
+        console.print(table)
+        console.print(f"\n💡 View details: [cyan]drafted status <job_id>[/cyan]")
+    
+    except httpx.HTTPError as e:
+        handle_error(e)
+    except Exception as e:
+        handle_error(e)
+
+
+@app.command()
+def health():
+    """
+    🏥 Check system health
+    
+    Example:
+        drafted health
+    """
+    show_banner()
+    
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Checking system health...", total=None)
+            
+            response = httpx.get(f"{API_URL}/health", timeout=10.0)
+            response.raise_for_status()
+            
+            progress.update(task, completed=True)
+        
+        health_data = response.json()
+        
+        status = health_data.get("status", "unknown")
+        redis = health_data.get("redis", "unknown")
+        queue_size = health_data.get("queue_size", 0)
+        
+        # Determine overall health
+        is_healthy = status == "healthy" and redis == "connected"
+        
+        info = f"[bold]Status:[/bold] "
+        if is_healthy:
+            info += "[green]✓ HEALTHY[/green]\n"
+        else:
+            info += "[red]✗ UNHEALTHY[/red]\n"
+        
+        info += f"[bold]Redis:[/bold] "
+        if redis == "connected":
+            info += "[green]✓ Connected[/green]\n"
+        else:
+            info += "[red]✗ Disconnected[/red]\n"
+        
+        info += f"[bold]Queue Size:[/bold] {queue_size} jobs\n"
+        info += f"[bold]API URL:[/bold] {API_URL}"
+        
+        panel = Panel(
+            info,
+            title="🏥 System Health",
+            border_style="green" if is_healthy else "red"
+        )
+        console.print(panel)
+        
+        if is_healthy:
+            console.print("\n✅ All systems operational!")
+        else:
+            console.print("\n⚠️  System issues detected. Check service logs.")
+    
+    except httpx.HTTPError as e:
+        console.print("[bold red]✗ Cannot reach API[/bold red]")
+        console.print(f"[dim]Make sure services are running: ./start.sh[/dim]")
+        sys.exit(1)
+    except Exception as e:
+        handle_error(e)
+
+
+@app.command()
+def version():
+    """
+    📦 Show version information
+    """
+    show_banner()
+    
+    info = (
+        "[bold]Version:[/bold] 1.0.0\n"
+        "[bold]System:[/bold] Drafted Brain\n"
+        "[bold]API:[/bold] " + API_URL + "\n"
+        "[bold]Docs:[/bold] See START_HERE.md"
+    )
+    
+    panel = Panel(info, title="📦 Version Info", border_style="cyan")
+    console.print(panel)
+
+
+if __name__ == "__main__":
+    app()

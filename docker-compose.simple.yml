@@ -1,0 +1,72 @@
+version: "3.9"
+
+name: drafted-brain
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redis-data:/data
+
+  openhands:
+    image: ghcr.io/all-hands-ai/openhands:latest
+    ports: ["8000:3000"]
+    environment:
+      OPENHANDS_LOG_LEVEL: info
+      SANDBOX_TYPE: docker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - openhands-workspace:/workspace
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "-m", "src.api.app"]
+    environment:
+      REDIS_URL: redis://redis:6379
+      OPENHANDS_URL: http://openhands:8000
+      PORT: 7001
+    env_file:
+      - .env
+    ports: ["7001:7001"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      openhands:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "-m", "src.worker.run"]
+    environment:
+      REDIS_URL: redis://redis:6379
+      OPENHANDS_URL: http://openhands:8000
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      openhands:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      replicas: 2  # Run 2 workers for parallel job processing
+
+volumes:
+  redis-data: {}
+  openhands-workspace: {}
